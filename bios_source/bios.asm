@@ -131,29 +131,16 @@ bios_entry:
 	; Total number of sectors is in CX:AX, or 0 if there is no HD image. First,
 	; we put it in DX:CX.
 
+	mov	[cs:hd_secs_hi], cx
+	mov	[cs:hd_secs_lo], ax
+
 	mov	dx, cx
 	mov	cx, ax
 
-	mov	[cs:hd_secs_hi], dx
-	mov	[cs:hd_secs_lo], cx
-
-	cmp	cx, 0
-	je	maybe_no_hd
-
-	mov	word [cs:num_disks], 2
-	jmp	calc_hd
-
-maybe_no_hd:
-
-	cmp	dx, 0
-	je	no_hd
-
-	mov	word [cs:num_disks], 2
-	jmp	calc_hd
-
-no_hd:
-
 	mov	word [cs:num_disks], 1
+	or	ax, dx
+	jz	calc_hd
+	mov	word [cs:num_disks], 2
 
 calc_hd:
 
@@ -164,10 +151,32 @@ calc_hd:
 	cmp	dx, 0		; More than 63 total sectors? If so, we have more than 1 track.
 	ja	sect_overflow
 	cmp	ax, 63
-	ja	sect_overflow
+	ja	sect_oldhdd
 
 	mov	[cs:hd_max_sector], ax
 	jmp	calc_heads
+
+sect_oldhdd:
+
+	mov	cx, 68		; testing of possible HEAD*SPT divisor of total number of sectors
+	div	cx
+	or	dx, dx		; test if the remainder is zero
+	jnz	not_old
+	test	ax, 0x3C00
+	jz oldhdd_true
+
+not_old:
+
+	mov	dx, [cs:hd_secs_hi]
+	mov	cx, [cs:hd_secs_lo]
+	jmp	sect_overflow
+
+oldhdd_true:
+
+	mov	[cs:hd_max_track], ax
+	mov	word [cs:hd_max_head], 4
+	mov	word [cs:hd_max_sector], 17
+	jmp	calc_end
 
 sect_overflow:
 
@@ -3849,3 +3858,6 @@ tm_wday		equ $+24
 tm_yday		equ $+28
 tm_dst		equ $+32
 tm_msec		equ $+36
+
+times 5f00h-$+main	db 0	; ROM BASIC loads at offset 0x6000
+incbin		"ibm-basic-1.10.rom"
