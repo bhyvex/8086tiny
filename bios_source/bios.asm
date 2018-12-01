@@ -3858,6 +3858,3 @@ tm_wday		equ $+24
 tm_yday		equ $+28
 tm_dst		equ $+32
 tm_msec		equ $+36
-
-times 5f00h-$+main	db 0	; ROM BASIC loads at offset 0x6000
-incbin		"ibm-basic-1.10.rom"
